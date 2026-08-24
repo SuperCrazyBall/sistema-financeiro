@@ -17,6 +17,10 @@
     detailView: document.getElementById("detailView"),
     summaryViewBtn: document.getElementById("summaryViewBtn"),
     detailViewBtn: document.getElementById("detailViewBtn"),
+    paymentSummaryBtn: document.getElementById("paymentSummaryBtn"),
+    paymentDetailBtn: document.getElementById("paymentDetailBtn"),
+    paymentLabelHeader: document.getElementById("paymentLabelHeader"),
+    paymentBody: document.getElementById("paymentBody"),
     helpDialog: document.getElementById("helpDialog"),
     status: document.getElementById("statusBox"),
     validation: document.getElementById("validationMessage"),
@@ -41,6 +45,12 @@
       best: document.getElementById("bestDetail"),
       worst: document.getElementById("worstDetail")
     },
+    payments: {
+      receipts: document.getElementById("paymentReceiptsTotal"),
+      payments: document.getElementById("paymentPaymentsTotal"),
+      topMethod: document.getElementById("paymentTopMethod"),
+      topPayment: document.getElementById("paymentTopPayment")
+    },
     balanceCard: document.querySelector(".metric.balance"),
     tooltip: document.getElementById("tooltip")
   };
@@ -49,7 +59,8 @@
     file: null,
     analysis: null,
     visibleRecords: [],
-    view: "summary"
+    view: "summary",
+    paymentView: "summary"
   };
 
   const lineChart = new window.FinanceCharts.FinanceChart(
@@ -60,6 +71,11 @@
   const barChart = new window.FinanceCharts.FinanceChart(
     document.getElementById("resultChart"),
     "bar",
+    els.tooltip
+  );
+  const paymentChart = new window.FinanceCharts.FinanceChart(
+    document.getElementById("paymentChart"),
+    "methods",
     els.tooltip
   );
 
@@ -175,6 +191,83 @@
     ));
   }
 
+  function periodMatches(item) {
+    if (els.periodMode.value !== "custom") {
+      return true;
+    }
+    const from = els.dateFrom.value;
+    const to = els.dateTo.value;
+    return item.dateStart && item.dateEnd &&
+      (!from || item.dateEnd >= from) &&
+      (!to || item.dateStart <= to);
+  }
+
+  function addGroupedValue(map, name, value, kind, parent) {
+    if (!value) {
+      return;
+    }
+    const key = `${kind}:${parent || ""}:${name}`;
+    const current = map.get(key) || { label: name, value: 0, kind, parent };
+    current.value += value;
+    map.set(key, current);
+  }
+
+  function aggregatePaymentFlow(days) {
+    const methodMap = new Map();
+    const detailMap = new Map();
+    const paymentMap = new Map();
+    const totals = { receipts: 0, payments: 0 };
+
+    days.forEach((day) => {
+      totals.receipts += day.receiptsTotal || 0;
+      totals.payments += day.paymentsTotal || 0;
+
+      day.methods.forEach((method) => {
+        addGroupedValue(methodMap, method.name, method.value, "receipt");
+        method.details.forEach((detail) => {
+          addGroupedValue(detailMap, `${method.name} / ${detail.name}`, detail.value, "receipt", method.name);
+        });
+      });
+
+      day.paymentDetails.forEach((payment) => {
+        addGroupedValue(paymentMap, payment.name, payment.value, "payment");
+        addGroupedValue(detailMap, `Pagamentos / ${payment.name}`, payment.value, "payment", "Pagamentos");
+      });
+    });
+
+    const receiptItems = Array.from(methodMap.values()).sort((a, b) => b.value - a.value);
+    const paymentItems = Array.from(paymentMap.values()).sort((a, b) => b.value - a.value);
+    const detailItems = Array.from(detailMap.values()).sort((a, b) => b.value - a.value);
+    const allSummaryItems = [
+      ...receiptItems,
+      ...paymentItems.map((item) => ({ ...item, label: `Pag. ${item.label}` }))
+    ].sort((a, b) => b.value - a.value);
+
+    return {
+      totals,
+      receiptItems,
+      paymentItems,
+      detailItems,
+      summaryItems: allSummaryItems
+    };
+  }
+
+  function percentage(value, total) {
+    if (!total) {
+      return "0,0%";
+    }
+    return new Intl.NumberFormat("pt-BR", {
+      style: "percent",
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1
+    }).format(value / total);
+  }
+
+  function paymentTooltip(item, total) {
+    const group = item.kind === "payment" ? "Pagamentos" : "Recebimentos";
+    return `${group}: ${formatMoney(item.value)}<br>Participação: ${percentage(item.value, total)}`;
+  }
+
   function updateMetrics(summary, recordCount) {
     els.metrics.entries.textContent = formatMoney(summary.entries);
     els.metrics.exits.textContent = formatMoney(summary.exits);
@@ -198,6 +291,55 @@
     els.details.topExit.textContent = formatMetricWithLabel(summary.topExit, "exits");
     els.details.best.textContent = formatMetricWithLabel(summary.best, "balance");
     els.details.worst.textContent = formatMetricWithLabel(summary.worst, "balance");
+  }
+
+  function updatePayments() {
+    const daily = state.analysis?.paymentFlow?.daily || [];
+    const days = daily.filter(periodMatches);
+    const aggregate = aggregatePaymentFlow(days);
+    const topMethod = aggregate.receiptItems[0];
+    const topPayment = aggregate.paymentItems[0];
+    const isDetail = state.paymentView === "detail";
+    const rows = isDetail ? aggregate.detailItems : aggregate.summaryItems;
+
+    els.payments.receipts.textContent = formatMoney(aggregate.totals.receipts);
+    els.payments.payments.textContent = formatMoney(aggregate.totals.payments);
+    els.payments.topMethod.textContent = topMethod ? `${formatMoney(topMethod.value)} (${topMethod.label})` : "R$ 0,00";
+    els.payments.topPayment.textContent = topPayment ? `${formatMoney(topPayment.value)} (${topPayment.label})` : "R$ 0,00";
+    els.paymentLabelHeader.textContent = isDetail ? "Forma / filial" : "Forma";
+
+    if (!daily.length) {
+      els.paymentBody.innerHTML = '<tr><td colspan="3">A aba fluxo diario não foi encontrada para esta análise.</td></tr>';
+      paymentChart.draw([]);
+      return;
+    }
+
+    if (!rows.length) {
+      els.paymentBody.innerHTML = '<tr><td colspan="3">Nenhuma forma encontrada no período selecionado.</td></tr>';
+      paymentChart.draw([]);
+      return;
+    }
+
+    const chartItems = rows.slice(0, 10).map((item) => {
+      const total = item.kind === "payment" ? aggregate.totals.payments : aggregate.totals.receipts;
+      return {
+        ...item,
+        tooltip: paymentTooltip(item, total)
+      };
+    });
+
+    paymentChart.draw(chartItems);
+    els.paymentBody.innerHTML = rows.slice(0, 26).map((item) => {
+      const total = item.kind === "payment" ? aggregate.totals.payments : aggregate.totals.receipts;
+      const valueClass = item.kind === "payment" ? "negative-value" : "positive-value";
+      return `
+        <tr>
+          <td title="${item.label}">${item.label}</td>
+          <td class="num ${valueClass}">${formatMoney(item.value)}</td>
+          <td class="num">${percentage(item.value, total)}</td>
+        </tr>
+      `;
+    }).join("");
   }
 
   function updateValidation(analysis, records) {
@@ -248,6 +390,14 @@
     els.summaryTitle.textContent = isDetail ? "Detalhamento do período" : "Resumo do período";
   }
 
+  function setPaymentView(view) {
+    state.paymentView = view;
+    const isDetail = view === "detail";
+    els.paymentSummaryBtn.classList.toggle("active", !isDetail);
+    els.paymentDetailBtn.classList.toggle("active", isDetail);
+    updatePayments();
+  }
+
   function renderAnalysis() {
     if (!state.analysis) {
       return;
@@ -261,6 +411,7 @@
     updateMetrics(summary, records.length);
     updateDetails(summary, records);
     updateValidation(state.analysis, records);
+    updatePayments();
     updateTable(records);
     lineChart.draw(records);
     barChart.draw(records);
@@ -313,6 +464,12 @@
     els.validation.classList.remove("ok", "warn", "error");
     lineChart.draw([]);
     barChart.draw([]);
+    paymentChart.draw([]);
+    els.paymentBody.innerHTML = '<tr><td colspan="3">Nenhuma análise gerada.</td></tr>';
+    els.payments.receipts.textContent = "R$ 0,00";
+    els.payments.payments.textContent = "R$ 0,00";
+    els.payments.topMethod.textContent = "R$ 0,00";
+    els.payments.topPayment.textContent = "R$ 0,00";
     els.saveImage.disabled = true;
     els.print.disabled = true;
   }
@@ -369,7 +526,7 @@
 
     const canvas = document.createElement("canvas");
     canvas.width = 1500;
-    canvas.height = 1050;
+    canvas.height = 1420;
     const ctx = canvas.getContext("2d");
     const summary = summarizeRecords(state.visibleRecords);
 
@@ -388,8 +545,12 @@
     drawMetric(ctx, "SALDO DO PERIODO", formatMoney(summary.balance), 760, 86, 330, summary.balance < 0 ? "#cc0000" : "#006b35");
     drawMetric(ctx, "REGISTROS", String(state.visibleRecords.length), 1120, 86, 330, "#103d5f");
 
-    ctx.drawImage(document.getElementById("flowChart"), 40, 180, 1420, 390);
-    ctx.drawImage(document.getElementById("resultChart"), 40, 610, 1420, 390);
+    drawText(ctx, "FORMAS DE PAGAMENTO", 40, 174, { font: "bold 18px Arial", color: "#143b63" });
+    ctx.drawImage(document.getElementById("paymentChart"), 40, 205, 1420, 330);
+    drawText(ctx, "ENTRADAS X SAIDAS", 40, 560, { font: "bold 18px Arial", color: "#143b63" });
+    ctx.drawImage(document.getElementById("flowChart"), 40, 590, 1420, 360);
+    drawText(ctx, "RESULTADO DIARIO", 40, 975, { font: "bold 18px Arial", color: "#143b63" });
+    ctx.drawImage(document.getElementById("resultChart"), 40, 1005, 1420, 360);
 
     const link = document.createElement("a");
     const stamp = new Date().toISOString().slice(0, 19).replace(/[-:T]/g, "");
@@ -427,6 +588,8 @@
   });
   els.summaryViewBtn.addEventListener("click", () => setView("summary"));
   els.detailViewBtn.addEventListener("click", () => setView("detail"));
+  els.paymentSummaryBtn.addEventListener("click", () => setPaymentView("summary"));
+  els.paymentDetailBtn.addEventListener("click", () => setPaymentView("detail"));
   els.saveImage.addEventListener("click", saveImage);
   els.print.addEventListener("click", () => window.print());
   els.clear.addEventListener("click", () => {

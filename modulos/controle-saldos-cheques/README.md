@@ -9,7 +9,8 @@ Módulo web/PWA para o setor financeiro analisar a planilha diária de saldos e 
 3. Clique em **Gerar análise**.
 4. Use **Período** para analisar todos os registros ou selecionar um intervalo personalizado.
 5. Alterne entre **Resumo** e **Detalhamento** para ver totais ou indicadores do período.
-6. Use **Salvar imagem** para baixar o painel em PNG ou **Imprimir** para imprimir.
+6. Confira **Formas de pagamento** para ver categorias como cartões, tesouraria, cheques, boletos, PIX e pagamentos por linha/filial.
+7. Use **Salvar imagem** para baixar o painel em PNG ou **Imprimir** para imprimir.
 
 ## Regras de leitura
 
@@ -18,6 +19,7 @@ Módulo web/PWA para o setor financeiro analisar a planilha diária de saldos e 
 - Linhas sem data/período não entram nos gráficos.
 - A linha de total geral é usada apenas para conferência, não como registro diário.
 - A aba `fluxo diario` é usada como apoio quando existir, comparando `RECEBIMENTOS` e `PAGAMENTOS`.
+- A opção **Formas de pagamento** usa a aba `fluxo diario`, lendo as datas no topo e somando as categorias do período selecionado.
 
 ## Privacidade
 

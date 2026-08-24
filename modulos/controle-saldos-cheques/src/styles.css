@@ -2,6 +2,10 @@
   min-width: 320px;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 .app-panel {
   min-height: calc(100vh - 10px);
 }
@@ -186,6 +190,36 @@
   height: 100%;
 }
 
+.payment-layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 390px) minmax(0, 1fr);
+  gap: 6px;
+  align-items: stretch;
+}
+
+.payment-kpis {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 5px;
+}
+
+.payment-chart-wrap {
+  min-height: 330px;
+  padding: 4px;
+  background: #fff;
+}
+
+.payment-chart-wrap canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.payment-table-wrap {
+  margin-top: 6px;
+  max-height: 260px;
+}
+
 .chart-tooltip {
   position: fixed;
   z-index: 20;
@@ -244,7 +278,8 @@
 
 @media (max-width: 980px) {
   .toolbar-grid,
-  .dashboard-grid {
+  .dashboard-grid,
+  .payment-layout {
     grid-template-columns: 1fr;
   }
 

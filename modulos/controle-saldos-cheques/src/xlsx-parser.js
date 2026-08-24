@@ -3,6 +3,31 @@
 
   const DATE_FORMAT_IDS = new Set([14, 15, 16, 17, 22, 27, 30, 36, 45, 46, 47, 50, 57]);
   const MONEY_TOLERANCE = 0.02;
+  const RECEIPT_METHOD_ROWS = [
+    { row: 2, name: "Cartões", endRow: 9 },
+    { row: 10, name: "Tesouraria", endRow: 18 },
+    { row: 19, name: "Cheques", endRow: 19 },
+    { row: 20, name: "Boletos CD", endRow: 20 },
+    { row: 21, name: "Boletos Loja", endRow: 21 },
+    { row: 22, name: "Conta CEF", endRow: 22 },
+    { row: 23, name: "Conta SAFRA", endRow: 23 },
+    { row: 24, name: "PIX Transf + TED + SISPAG", endRow: 31 },
+    { row: 32, name: "PIX QRs", endRow: 40 }
+  ];
+
+  const PAYMENT_TOTAL_ROWS = [
+    { row: 43, name: "Matriz" },
+    { row: 44, name: "Conta Boletos" },
+    { row: 45, name: "Guamá" },
+    { row: 46, name: "Ceasa" },
+    { row: 47, name: "C. Nova" },
+    { row: 48, name: "Pedreira" },
+    { row: 49, name: "Centro" },
+    { row: 50, name: "Jurunas" },
+    { row: 51, name: "Nuvem" },
+    { row: 52, name: "D. Franco" },
+    { row: 53, name: "Conta Garantia" }
+  ];
 
   function normalizeText(value) {
     return String(value || "")
@@ -54,6 +79,28 @@
     return year < 100 ? 2000 + year : year;
   }
 
+  function parseDateToken(token, fallbackYear, fallbackMonth) {
+    const clean = String(token || "").trim().replace(/[.-]/g, "/");
+    const compact = /^\d{4}$/.test(clean) ? `${clean.slice(0, 2)}/${clean.slice(2)}` : clean;
+    const parts = compact.split("/").filter(Boolean).map((part) => Number(part));
+    if (!parts.length || parts.some((part) => !Number.isFinite(part))) {
+      return null;
+    }
+    const day = parts[0];
+    const month = parts[1] || fallbackMonth;
+    const year = expandYear(parts[2], fallbackYear);
+    if (!day || !month || day > 31 || month > 12) {
+      return null;
+    }
+    return makeUtcDate(year, month, day);
+  }
+
+  function extractDateTokens(text) {
+    return String(text || "")
+      .replace(/(\d)([aA])(\d)/g, "$1 $2 $3")
+      .match(/\d{1,2}(?:[\/.-]\d{1,2})?(?:[\/.-]\d{2,4})?|\b\d{4}\b/g) || [];
+  }
+
   function labelKey(value) {
     if (value instanceof Date) {
       return formatDateKey(value);
@@ -86,26 +133,23 @@
     }
 
     const text = String(value || "").trim();
-    const fullDate = /^(\d{1,2})[\/.-](\d{1,2})(?:[\/.-](\d{2,4}))?$/.exec(text);
-    if (fullDate) {
-      const year = expandYear(fullDate[3], fallbackYear);
-      const date = makeUtcDate(year, Number(fullDate[2]), Number(fullDate[1]));
-      const key = formatDateKey(date);
-      return { start: key, end: key, year };
-    }
-
-    const range = /^(\d{1,2})(?:[\/.-](\d{1,2}))?\s*a\s*(\d{1,2})[\/.-](\d{1,2})(?:[\/.-](\d{2,4}))?$/i.exec(text);
-    if (range) {
-      const year = expandYear(range[5], fallbackYear);
-      const startMonth = Number(range[2] || range[4]);
-      const endMonth = Number(range[4]);
-      const startDate = makeUtcDate(year, startMonth, Number(range[1]));
-      const endDate = makeUtcDate(year, endMonth, Number(range[3]));
-      return {
-        start: formatDateKey(startDate),
-        end: formatDateKey(endDate),
-        year
-      };
+    const tokens = extractDateTokens(text);
+    if (tokens.length) {
+      const endDate = parseDateToken(tokens[tokens.length - 1], fallbackYear, null);
+      const startDate = parseDateToken(
+        tokens[0],
+        endDate ? endDate.getUTCFullYear() : fallbackYear,
+        endDate ? endDate.getUTCMonth() + 1 : null
+      );
+      if (startDate && endDate) {
+        const start = startDate <= endDate ? startDate : endDate;
+        const end = startDate <= endDate ? endDate : startDate;
+        return {
+          start: formatDateKey(start),
+          end: formatDateKey(end),
+          year: end.getUTCFullYear()
+        };
+      }
     }
 
     return { start: null, end: null, year: fallbackYear || null };
@@ -406,6 +450,77 @@
     return { status: "ok", message: `Conferencia concluida: ${checked} registro(s) batem com fluxo diario.` };
   }
 
+  function rowLabel(sheet, row, fallback) {
+    return String(sheet.get(row, 1) || sheet.get(row, 2) || fallback || "").trim();
+  }
+
+  function detailRowsForSection(sheet, section) {
+    const rows = [];
+    for (let row = section.row + 1; row <= section.endRow; row += 1) {
+      const name = rowLabel(sheet, row, "");
+      if (name) {
+        rows.push({ row, name });
+      }
+    }
+    return rows;
+  }
+
+  function extractFluxoDiario(sheet) {
+    if (!sheet) {
+      return null;
+    }
+
+    const columns = [];
+    let activeYear = null;
+    for (let col = 3; col <= sheet.maxCol; col += 1) {
+      const rawLabel = sheet.get(1, col);
+      if (rawLabel === undefined || rawLabel === null || rawLabel === "") {
+        continue;
+      }
+      const period = parseLabelPeriod(rawLabel, activeYear);
+      activeYear = period.year || activeYear;
+      if (!period.start || !period.end) {
+        continue;
+      }
+      columns.push({
+        col,
+        label: formatLabel(rawLabel),
+        shortLabel: shortDateLabel(rawLabel),
+        dateStart: period.start,
+        dateEnd: period.end
+      });
+    }
+
+    const receiptSections = RECEIPT_METHOD_ROWS.map((section) => ({
+      ...section,
+      details: detailRowsForSection(sheet, section)
+    }));
+
+    const daily = columns.map((column) => {
+      const methods = receiptSections.map((section) => ({
+        name: section.name,
+        value: Math.abs(numberValue(sheet.get(section.row, column.col))),
+        details: section.details.map((detail) => ({
+          name: detail.name,
+          value: Math.abs(numberValue(sheet.get(detail.row, column.col)))
+        })).filter((detail) => detail.value)
+      })).filter((method) => method.value || method.details.length);
+
+      return {
+        ...column,
+        methods,
+        receiptsTotal: Math.abs(numberValue(sheet.get(41, column.col))),
+        paymentsTotal: Math.abs(numberValue(sheet.get(42, column.col))),
+        paymentDetails: PAYMENT_TOTAL_ROWS.map((row) => ({
+          name: row.name,
+          value: Math.abs(numberValue(sheet.get(row.row, column.col)))
+        })).filter((item) => item.value)
+      };
+    });
+
+    return { daily };
+  }
+
   function summarize(records, totalRow) {
     const totals = records.reduce((acc, record) => {
       acc.entries += record.entries;
@@ -484,11 +599,14 @@
 
     const { records, totalRow } = extractFluxoRecords(fluxo);
     const summary = summarize(records, totalRow);
-    const validation = validateFluxoDiario(parsedSheets.get("FLUXO DIARIO"), records);
+    const fluxoDiario = parsedSheets.get("FLUXO DIARIO");
+    const validation = validateFluxoDiario(fluxoDiario, records);
+    const paymentFlow = extractFluxoDiario(fluxoDiario);
 
     return {
       records,
       summary,
+      paymentFlow,
       validation,
       sheets: sheets.map((sheet) => sheet.name)
     };

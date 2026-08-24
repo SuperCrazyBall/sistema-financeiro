@@ -96,6 +96,8 @@
 
       if (this.type === "line") {
         this.drawLine(ctx, width, height);
+      } else if (this.type === "methods") {
+        this.drawMethods(ctx, width, height);
       } else {
         this.drawBars(ctx, width, height);
       }
@@ -260,6 +262,50 @@
       this.drawHover(ctx);
     }
 
+    drawMethods(ctx, width, height) {
+      const items = this.records.slice(0, 10);
+      const area = {
+        left: 150,
+        right: width - 108,
+        top: 22,
+        bottom: height - 34,
+        width: width - 258,
+        height: height - 56
+      };
+      const max = Math.max(...items.map((item) => item.value), 1);
+      const rowHeight = Math.max(20, Math.min(30, area.height / Math.max(items.length, 1)));
+      this.points = [];
+
+      ctx.font = "11px Arial";
+      ctx.textBaseline = "middle";
+      items.forEach((item, index) => {
+        const y = area.top + index * rowHeight + rowHeight / 2;
+        const barWidth = (item.value / max) * area.width;
+        const color = item.kind === "payment" ? COLORS.exits : COLORS.entries;
+
+        ctx.fillStyle = COLORS.text;
+        ctx.textAlign = "right";
+        ctx.fillText(item.label, area.left - 8, y);
+        ctx.fillStyle = color;
+        ctx.fillRect(area.left, y - 7, barWidth, 14);
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(area.left + barWidth, y - 7, Math.max(0, area.width - barWidth), 14);
+        ctx.strokeStyle = COLORS.grid;
+        ctx.strokeRect(area.left, y - 7, area.width, 14);
+        ctx.fillStyle = COLORS.text;
+        ctx.textAlign = "left";
+        ctx.fillText(currency(item.value), area.left + barWidth + 6, y);
+        this.points.push({ index, series: "method", x: area.left + barWidth, y });
+      });
+
+      this.drawLegend(ctx, [
+        { label: "Recebimentos", color: COLORS.entries },
+        { label: "Pagamentos", color: COLORS.exits }
+      ], width, height - 16);
+
+      this.drawHover(ctx);
+    }
+
     drawHover(ctx) {
       if (this.hoverIndex < 0 || !this.records[this.hoverIndex]) {
         return;
@@ -283,9 +329,19 @@
       }
       const rect = this.canvas.getBoundingClientRect();
       const x = event.clientX - rect.left;
-      const area = this.chartArea(rect.width, rect.height);
-      const ratio = Math.min(Math.max((x - area.left) / area.width, 0), 1);
-      const index = Math.round(ratio * (this.records.length - 1));
+      const y = event.clientY - rect.top;
+      let index;
+      if (this.type === "methods") {
+        index = this.points.reduce((nearest, point) => {
+          const currentDistance = Math.abs(point.y - y);
+          const nearestDistance = Math.abs(this.points[nearest]?.y - y);
+          return currentDistance < nearestDistance ? point.index : nearest;
+        }, 0);
+      } else {
+        const area = this.chartArea(rect.width, rect.height);
+        const ratio = Math.min(Math.max((x - area.left) / area.width, 0), 1);
+        index = Math.round(ratio * (this.records.length - 1));
+      }
       this.hoverIndex = index;
       this.draw(this.records);
       this.showTooltip(event, this.records[index]);
@@ -295,9 +351,9 @@
       this.tooltip.hidden = false;
       this.tooltip.innerHTML = `
         <strong>${record.label}</strong><br>
-        Entradas: ${currency(record.entries)}<br>
+        ${record.tooltip || `Entradas: ${currency(record.entries)}<br>
         Saídas: ${currency(record.exits)}<br>
-        Saldo: ${currency(record.balance)}
+        Saldo: ${currency(record.balance)}`}
       `;
       const x = Math.min(event.clientX + 14, window.innerWidth - this.tooltip.offsetWidth - 8);
       const y = Math.min(event.clientY + 14, window.innerHeight - this.tooltip.offsetHeight - 8);
