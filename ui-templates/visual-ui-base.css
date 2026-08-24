@@ -1,0 +1,250 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+:root {
+  --vs-blue: #2c9fca;
+  --vs-blue-dark: #003399;
+  --vs-orange: #ffa500;
+  --vs-yellow: #ffc130;
+  --vs-cream: #fff4d6;
+  --vs-cream-light: #fff8e8;
+  --vs-grid: #bfb79a;
+  --vs-border: #7f7f7f;
+  --vs-red: #cc0000;
+  --vs-green: #008000;
+}
+
+html,
+body {
+  width: 100%;
+  min-height: 100%;
+  margin: 0;
+  background: #f5edd8;
+  color: #000;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 12px;
+  font-style: italic;
+  font-weight: bold;
+}
+
+.vs-shell {
+  min-height: 100vh;
+  padding: 4px 6px 6px;
+  background: #f5edd8;
+}
+
+.vs-panel {
+  margin: 0 0 6px;
+  border: 2px solid;
+  border-color: #ddd #888 #888 #ddd;
+  background: var(--vs-cream-light);
+}
+
+.vs-panel-hd {
+  min-height: 21px;
+  padding: 3px 8px;
+  border-bottom: 1px solid #885500;
+  background: linear-gradient(180deg, #ffdc79 0%, var(--vs-orange) 100%);
+  color: #000;
+  font-size: 12px;
+  line-height: 15px;
+}
+
+.vs-panel-hd.blue {
+  border-bottom-color: #0a5d7a;
+  background: linear-gradient(180deg, #36afd6 0%, #1789b7 100%);
+}
+
+.vs-panel-bd {
+  padding: 5px;
+  background: var(--vs-cream-light);
+}
+
+.vs-title-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 360px);
+  gap: 8px;
+  align-items: stretch;
+  margin-bottom: 5px;
+  padding: 5px 7px;
+  border: 1px solid #c09000;
+  background: linear-gradient(180deg, #fff8df 0%, #ffd45a 100%);
+}
+
+.vs-title-row h1 {
+  margin: 0;
+  color: #000;
+  font-size: 18px;
+  line-height: 20px;
+  text-shadow: 1px 1px 0 #fff3bf;
+}
+
+.vs-title-row p {
+  margin: 2px 0 0;
+  color: #111;
+  font-size: 11px;
+  line-height: 15px;
+}
+
+.vs-status {
+  min-height: 31px;
+  padding: 6px 8px;
+  border: 1px solid #c09000;
+  background: #fff0a8;
+  color: #4f3100;
+  font-size: 11px;
+  line-height: 15px;
+  text-align: center;
+}
+
+.vs-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
+.vbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+  padding: 2px 10px;
+  border: 2px solid;
+  border-color: #fff #888 #888 #fff;
+  border-radius: 0;
+  background: #efefef;
+  color: #000;
+  cursor: pointer;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 12px;
+  font-style: italic;
+  font-weight: bold;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+.vbtn:hover {
+  background: #f8f8f8;
+}
+
+.vbtn:active {
+  border-color: #888 #fff #fff #888;
+}
+
+.vbtn.prim {
+  background: #fff0a8;
+}
+
+.vbtn:disabled {
+  border-color: #eee #999 #999 #eee;
+  background: #d8d8d8;
+  color: #666;
+  cursor: not-allowed;
+  opacity: .65;
+}
+
+.vs-input,
+input,
+select,
+textarea {
+  width: 100%;
+  min-height: 22px;
+  padding: 2px 4px;
+  border: 2px inset #999;
+  border-radius: 0;
+  outline: none;
+  background: #fff;
+  color: #000;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 11px;
+  font-style: italic;
+  font-weight: bold;
+}
+
+.vs-input:focus,
+input:focus,
+select:focus,
+textarea:focus {
+  background: #fffff0;
+  outline: 1px solid #0086d8;
+}
+
+.vs-form-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(120px, 1fr));
+  gap: 4px 6px;
+  align-items: end;
+}
+
+.vs-form-grid label {
+  display: grid;
+  gap: 1px;
+  color: #000;
+  font-size: 11px;
+  line-height: 14px;
+}
+
+.vs-table-wrap {
+  overflow: auto;
+  border: 1px solid #006f9d;
+  background: var(--vs-cream);
+}
+
+.vs-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  background: var(--vs-cream);
+}
+
+.vs-table th,
+.vs-table td {
+  height: 21px;
+  padding: 2px 5px;
+  border: 1px solid var(--vs-grid);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vs-table th {
+  height: 20px;
+  border-color: #575757;
+  background: var(--vs-orange);
+  color: #000;
+  font-size: 11px;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.vs-table td {
+  background: #fff4d6;
+  font-size: 11px;
+}
+
+.vs-table tr:nth-child(even) td {
+  background: #f8edc8;
+}
+
+.vs-table tr:hover td {
+  background: #fff0b6;
+}
+
+.num {
+  text-align: right;
+  font-family: "Courier New", monospace;
+  font-style: normal;
+}
+
+@media (max-width: 760px) {
+  .vs-title-row,
+  .vs-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .vs-status {
+    text-align: left;
+  }
+}

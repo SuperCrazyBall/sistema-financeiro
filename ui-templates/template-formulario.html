@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Template de Formulário Visual</title>
+<link rel="stylesheet" href="visual-ui-base.css">
+</head>
+<body>
+  <main class="vs-shell">
+    <section class="vs-panel">
+      <div class="vs-panel-hd blue">Cadastro / Consulta</div>
+      <div class="vs-panel-bd">
+        <header class="vs-title-row">
+          <div>
+            <h1>Formulário Operacional</h1>
+            <p>Modelo compacto para filtros, cadastros e consultas internas.</p>
+          </div>
+          <div class="vs-status">Informe os dados e confirme a operação.</div>
+        </header>
+
+        <section class="vs-panel">
+          <div class="vs-panel-hd">Filtros</div>
+          <div class="vs-panel-bd">
+            <div class="vs-form-grid">
+              <label>
+                Filial
+                <select class="vs-input">
+                  <option>Todas as filiais</option>
+                  <option>Matriz</option>
+                  <option>Loja 01</option>
+                </select>
+              </label>
+              <label>
+                Período
+                <select class="vs-input">
+                  <option>Últimos 7 dias</option>
+                  <option>Mês atual</option>
+                  <option>Todo período</option>
+                </select>
+              </label>
+              <label>
+                Código
+                <input class="vs-input" type="text" placeholder="Buscar código">
+              </label>
+              <label>
+                Descrição
+                <input class="vs-input" type="text" placeholder="Buscar produto">
+              </label>
+            </div>
+          </div>
+        </section>
+
+        <section class="vs-panel">
+          <div class="vs-panel-hd">Ações</div>
+          <div class="vs-panel-bd">
+            <div class="vs-actions">
+              <button class="vbtn prim" type="button">Buscar</button>
+              <button class="vbtn" type="button">Salvar</button>
+              <button class="vbtn" type="button">Excel</button>
+              <button class="vbtn" type="button">Retornar</button>
+            </div>
+          </div>
+        </section>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
