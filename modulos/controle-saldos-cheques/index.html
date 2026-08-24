@@ -33,6 +33,23 @@
                 <input id="excelFile" class="vs-input" type="file" accept=".xlsx,.xlsm">
                 <span id="fileName" class="file-name">Nenhum arquivo selecionado</span>
               </label>
+              <div class="period-controls">
+                <label>
+                  Período
+                  <select id="periodMode" class="vs-input" disabled>
+                    <option value="all">Todos os registros</option>
+                    <option value="custom">Personalizado</option>
+                  </select>
+                </label>
+                <label>
+                  De
+                  <input id="dateFrom" class="vs-input" type="date" disabled>
+                </label>
+                <label>
+                  Até
+                  <input id="dateTo" class="vs-input" type="date" disabled>
+                </label>
+              </div>
               <div class="vs-actions action-strip">
                 <button id="analyzeBtn" class="vbtn prim" type="button" disabled>Gerar análise</button>
                 <button id="saveImageBtn" class="vbtn" type="button" disabled>Salvar imagem</button>
@@ -46,9 +63,15 @@
 
         <section id="analysisArea" class="analysis-area" aria-live="polite">
           <section class="vs-panel summary-panel">
-            <div class="vs-panel-hd">Resumo do período</div>
+            <div class="vs-panel-hd summary-hd">
+              <span id="summaryTitle">Resumo do período</span>
+              <span class="view-toggle">
+                <button id="summaryViewBtn" class="toggle-btn active" type="button">Resumo</button>
+                <button id="detailViewBtn" class="toggle-btn" type="button">Detalhamento</button>
+              </span>
+            </div>
             <div class="vs-panel-bd">
-              <div class="summary-grid">
+              <div id="summaryView" class="summary-grid">
                 <article class="metric">
                   <span>Total de entradas</span>
                   <strong id="totalEntries">R$ 0,00</strong>
@@ -80,6 +103,40 @@
                 <article class="metric">
                   <span>Registros analisados</span>
                   <strong id="recordCount">0</strong>
+                </article>
+              </div>
+              <div id="detailView" class="detail-grid" hidden>
+                <article class="metric">
+                  <span>Período selecionado</span>
+                  <strong id="selectedPeriod">Todos</strong>
+                </article>
+                <article class="metric">
+                  <span>Média de entradas</span>
+                  <strong id="avgEntries">R$ 0,00</strong>
+                </article>
+                <article class="metric">
+                  <span>Média de saídas</span>
+                  <strong id="avgExits">R$ 0,00</strong>
+                </article>
+                <article class="metric">
+                  <span>Média de saldo</span>
+                  <strong id="avgBalance">R$ 0,00</strong>
+                </article>
+                <article class="metric">
+                  <span>Maior entrada</span>
+                  <strong id="topEntry">R$ 0,00</strong>
+                </article>
+                <article class="metric">
+                  <span>Maior saída</span>
+                  <strong id="topExit">R$ 0,00</strong>
+                </article>
+                <article class="metric">
+                  <span>Melhor dia/período</span>
+                  <strong id="bestDetail">R$ 0,00</strong>
+                </article>
+                <article class="metric">
+                  <span>Pior dia/período</span>
+                  <strong id="worstDetail">R$ 0,00</strong>
                 </article>
               </div>
               <div id="validationMessage" class="validation-message">Importe uma planilha para iniciar.</div>
@@ -139,8 +196,9 @@
           <ol>
             <li>Selecione a planilha do dia no campo Arquivo Excel.</li>
             <li>Clique em Gerar análise para ler a aba Fluxo.</li>
-            <li>Confira os cartões de resumo e passe o mouse nos gráficos para ver os valores.</li>
-            <li>Use Salvar imagem para baixar o painel em PNG ou Imprimir para enviar à impressora.</li>
+            <li>Use o campo Período para ver todos os registros ou escolher uma data inicial e final.</li>
+            <li>Alterne entre Resumo e Detalhamento para conferir os totais ou indicadores do recorte.</li>
+            <li>Passe o mouse nos gráficos para ver os valores e use Salvar imagem ou Imprimir quando precisar.</li>
           </ol>
           <p>Os dados são processados somente neste computador.</p>
           <div class="vs-actions">

@@ -106,9 +106,9 @@
         left: 78,
         right: width - 18,
         top: 22,
-        bottom: height - 58,
+        bottom: height - 106,
         width: width - 96,
-        height: height - 80
+        height: height - 128
       };
     }
 
@@ -156,14 +156,17 @@
         ctx.save();
         ctx.translate(x, area.bottom + 8);
         ctx.rotate(-Math.PI / 2);
-        ctx.fillText(this.records[i].label, 0, 0);
+        ctx.fillText(this.records[i].shortLabel || this.records[i].label, 0, 0);
         ctx.restore();
       }
       ctx.restore();
     }
 
     drawLegend(ctx, items, width, y) {
-      let x = width / 2 - items.length * 54;
+      const totalWidth = items.length * 110;
+      let x = Math.max(88, width / 2 - totalWidth / 2);
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(78, y - 13, width - 96, 25);
       ctx.font = "11px Arial";
       ctx.textAlign = "left";
       ctx.textBaseline = "middle";
@@ -206,7 +209,7 @@
       this.drawLegend(ctx, [
         { label: "Entradas", color: COLORS.entries },
         { label: "Saídas", color: COLORS.exits }
-      ], width, height - 18);
+      ], width, height - 20);
 
       this.drawHover(ctx);
     }
@@ -252,7 +255,7 @@
         { label: "Entradas", color: COLORS.entries },
         { label: "Saídas", color: COLORS.exits },
         { label: "Saldo", color: COLORS.balance }
-      ], width, height - 18);
+      ], width, height - 20);
 
       this.drawHover(ctx);
     }

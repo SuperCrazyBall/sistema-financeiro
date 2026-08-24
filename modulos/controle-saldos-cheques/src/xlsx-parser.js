@@ -42,6 +42,18 @@
     return `${year}-${month}-${day}`;
   }
 
+  function makeUtcDate(year, month, day) {
+    return new Date(Date.UTC(year, month - 1, day));
+  }
+
+  function expandYear(value, fallbackYear) {
+    if (value === undefined || value === null || value === "") {
+      return fallbackYear || new Date().getFullYear();
+    }
+    const year = Number(value);
+    return year < 100 ? 2000 + year : year;
+  }
+
   function labelKey(value) {
     if (value instanceof Date) {
       return formatDateKey(value);
@@ -56,6 +68,47 @@
       return `${day}/${month}/${value.getUTCFullYear()}`;
     }
     return String(value || "").trim();
+  }
+
+  function shortDateLabel(value) {
+    if (value instanceof Date) {
+      const day = String(value.getUTCDate()).padStart(2, "0");
+      const month = String(value.getUTCMonth() + 1).padStart(2, "0");
+      return `${day}/${month}`;
+    }
+    return String(value || "").trim();
+  }
+
+  function parseLabelPeriod(value, fallbackYear) {
+    if (value instanceof Date) {
+      const key = formatDateKey(value);
+      return { start: key, end: key, year: value.getUTCFullYear() };
+    }
+
+    const text = String(value || "").trim();
+    const fullDate = /^(\d{1,2})[\/.-](\d{1,2})(?:[\/.-](\d{2,4}))?$/.exec(text);
+    if (fullDate) {
+      const year = expandYear(fullDate[3], fallbackYear);
+      const date = makeUtcDate(year, Number(fullDate[2]), Number(fullDate[1]));
+      const key = formatDateKey(date);
+      return { start: key, end: key, year };
+    }
+
+    const range = /^(\d{1,2})(?:[\/.-](\d{1,2}))?\s*a\s*(\d{1,2})[\/.-](\d{1,2})(?:[\/.-](\d{2,4}))?$/i.exec(text);
+    if (range) {
+      const year = expandYear(range[5], fallbackYear);
+      const startMonth = Number(range[2] || range[4]);
+      const endMonth = Number(range[4]);
+      const startDate = makeUtcDate(year, startMonth, Number(range[1]));
+      const endDate = makeUtcDate(year, endMonth, Number(range[3]));
+      return {
+        start: formatDateKey(startDate),
+        end: formatDateKey(endDate),
+        year
+      };
+    }
+
+    return { start: null, end: null, year: fallbackYear || null };
   }
 
   function numberValue(value) {
@@ -243,6 +296,7 @@
     const headerRow = findFluxoHeader(sheet);
     const records = [];
     const totalRow = findTotalRow(sheet, headerRow);
+    let activeYear = null;
 
     for (let row = headerRow + 1; row <= sheet.maxRow; row += 1) {
       const label = sheet.get(row, 1);
@@ -264,11 +318,17 @@
         continue;
       }
 
+      const period = parseLabelPeriod(label, activeYear);
+      activeYear = period.year || activeYear;
+
       records.push({
         row,
         label: formatLabel(label),
+        shortLabel: shortDateLabel(label),
         key: labelKey(label),
         rawLabel: label,
+        dateStart: period.start,
+        dateEnd: period.end,
         entries,
         exits,
         balance

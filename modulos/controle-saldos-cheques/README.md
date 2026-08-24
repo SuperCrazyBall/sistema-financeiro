@@ -7,8 +7,9 @@ Módulo web/PWA para o setor financeiro analisar a planilha diária de saldos e 
 1. Abra `index.html` pelo servidor local ou pelo link publicado.
 2. Selecione a planilha Excel no campo **Arquivo Excel**.
 3. Clique em **Gerar análise**.
-4. Confira os totais, os gráficos e a tabela de últimos registros.
-5. Use **Salvar imagem** para baixar o painel em PNG ou **Imprimir** para imprimir.
+4. Use **Período** para analisar todos os registros ou selecionar um intervalo personalizado.
+5. Alterne entre **Resumo** e **Detalhamento** para ver totais ou indicadores do período.
+6. Use **Salvar imagem** para baixar o painel em PNG ou **Imprimir** para imprimir.
 
 ## Regras de leitura
 

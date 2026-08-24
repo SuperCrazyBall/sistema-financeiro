@@ -9,6 +9,14 @@
     print: document.getElementById("printBtn"),
     clear: document.getElementById("clearBtn"),
     help: document.getElementById("helpBtn"),
+    periodMode: document.getElementById("periodMode"),
+    dateFrom: document.getElementById("dateFrom"),
+    dateTo: document.getElementById("dateTo"),
+    summaryTitle: document.getElementById("summaryTitle"),
+    summaryView: document.getElementById("summaryView"),
+    detailView: document.getElementById("detailView"),
+    summaryViewBtn: document.getElementById("summaryViewBtn"),
+    detailViewBtn: document.getElementById("detailViewBtn"),
     helpDialog: document.getElementById("helpDialog"),
     status: document.getElementById("statusBox"),
     validation: document.getElementById("validationMessage"),
@@ -23,13 +31,25 @@
       worst: document.getElementById("worstBalance"),
       recordCount: document.getElementById("recordCount")
     },
+    details: {
+      selectedPeriod: document.getElementById("selectedPeriod"),
+      avgEntries: document.getElementById("avgEntries"),
+      avgExits: document.getElementById("avgExits"),
+      avgBalance: document.getElementById("avgBalance"),
+      topEntry: document.getElementById("topEntry"),
+      topExit: document.getElementById("topExit"),
+      best: document.getElementById("bestDetail"),
+      worst: document.getElementById("worstDetail")
+    },
     balanceCard: document.querySelector(".metric.balance"),
     tooltip: document.getElementById("tooltip")
   };
 
   const state = {
     file: null,
-    analysis: null
+    analysis: null,
+    visibleRecords: [],
+    view: "summary"
   };
 
   const lineChart = new window.FinanceCharts.FinanceChart(
@@ -45,14 +65,114 @@
 
   function setStatus(message, mode) {
     els.status.textContent = message;
-    els.validation.classList.remove("ok", "warn", "error");
-    if (mode) {
-      els.validation.classList.add(mode);
-    }
   }
 
   function formatMoney(value) {
     return window.FinanceCharts.currency(value);
+  }
+
+  function summarizeRecords(records) {
+    return records.reduce((acc, record) => {
+      acc.entries += record.entries;
+      acc.exits += record.exits;
+      acc.balance += record.balance;
+      if (record.balance > 0) {
+        acc.positiveDays += 1;
+      }
+      if (record.balance < 0) {
+        acc.negativeDays += 1;
+      }
+      if (!acc.best || record.balance > acc.best.balance) {
+        acc.best = record;
+      }
+      if (!acc.worst || record.balance < acc.worst.balance) {
+        acc.worst = record;
+      }
+      if (!acc.topEntry || record.entries > acc.topEntry.entries) {
+        acc.topEntry = record;
+      }
+      if (!acc.topExit || record.exits > acc.topExit.exits) {
+        acc.topExit = record;
+      }
+      return acc;
+    }, {
+      entries: 0,
+      exits: 0,
+      balance: 0,
+      positiveDays: 0,
+      negativeDays: 0,
+      best: null,
+      worst: null,
+      topEntry: null,
+      topExit: null
+    });
+  }
+
+  function formatDatePtBr(key) {
+    if (!key) {
+      return "";
+    }
+    const [year, month, day] = key.split("-");
+    return `${day}/${month}/${year}`;
+  }
+
+  function formatPeriodName(records) {
+    if (!records.length) {
+      return "Sem registros";
+    }
+    const first = records[0];
+    const last = records[records.length - 1];
+    const start = first.dateStart ? formatDatePtBr(first.dateStart) : first.label;
+    const end = last.dateEnd ? formatDatePtBr(last.dateEnd) : last.label;
+    return start === end ? start : `${start} até ${end}`;
+  }
+
+  function formatMetricWithLabel(record, key) {
+    return record ? `${formatMoney(record[key])} (${record.label})` : "R$ 0,00";
+  }
+
+  function configurePeriodControls(records) {
+    const dated = records.filter((record) => record.dateStart && record.dateEnd);
+    const first = dated[0];
+    const last = dated[dated.length - 1];
+    els.periodMode.disabled = !dated.length;
+    els.dateFrom.disabled = els.periodMode.value !== "custom" || !dated.length;
+    els.dateTo.disabled = els.periodMode.value !== "custom" || !dated.length;
+
+    if (!dated.length) {
+      els.dateFrom.value = "";
+      els.dateTo.value = "";
+      return;
+    }
+
+    els.dateFrom.min = first.dateStart;
+    els.dateFrom.max = last.dateEnd;
+    els.dateTo.min = first.dateStart;
+    els.dateTo.max = last.dateEnd;
+
+    if (!els.dateFrom.value) {
+      els.dateFrom.value = first.dateStart;
+    }
+    if (!els.dateTo.value) {
+      els.dateTo.value = last.dateEnd;
+    }
+  }
+
+  function filteredRecords() {
+    if (!state.analysis) {
+      return [];
+    }
+    if (els.periodMode.value !== "custom") {
+      return state.analysis.records;
+    }
+
+    const from = els.dateFrom.value;
+    const to = els.dateTo.value;
+    return state.analysis.records.filter((record) => (
+      record.dateStart && record.dateEnd &&
+      (!from || record.dateEnd >= from) &&
+      (!to || record.dateStart <= to)
+    ));
   }
 
   function updateMetrics(summary, recordCount) {
@@ -68,11 +188,26 @@
     els.balanceCard.classList.toggle("negative", summary.balance < 0);
   }
 
-  function updateValidation(analysis) {
-    const messages = [];
-    const mode = analysis.validation.status === "ok" && analysis.summary.totalCheck?.matches ? "ok" : "warn";
+  function updateDetails(summary, records) {
+    const count = records.length || 1;
+    els.details.selectedPeriod.textContent = formatPeriodName(records);
+    els.details.avgEntries.textContent = formatMoney(summary.entries / count);
+    els.details.avgExits.textContent = formatMoney(summary.exits / count);
+    els.details.avgBalance.textContent = formatMoney(summary.balance / count);
+    els.details.topEntry.textContent = formatMetricWithLabel(summary.topEntry, "entries");
+    els.details.topExit.textContent = formatMetricWithLabel(summary.topExit, "exits");
+    els.details.best.textContent = formatMetricWithLabel(summary.best, "balance");
+    els.details.worst.textContent = formatMetricWithLabel(summary.worst, "balance");
+  }
 
-    if (analysis.summary.totalCheck) {
+  function updateValidation(analysis, records) {
+    const messages = [];
+    const isFiltered = records.length !== analysis.records.length || els.periodMode.value === "custom";
+    const mode = analysis.validation.status === "ok" && (!analysis.summary.totalCheck || analysis.summary.totalCheck.matches) ? "ok" : "warn";
+
+    if (isFiltered) {
+      messages.push(`Filtro aplicado: ${records.length} de ${analysis.records.length} registro(s).`);
+    } else if (analysis.summary.totalCheck) {
       messages.push(
         analysis.summary.totalCheck.matches
           ? `Totais conferidos com a linha ${analysis.summary.totalCheck.row} da aba Fluxo.`
@@ -87,6 +222,11 @@
   }
 
   function updateTable(records) {
+    if (!records.length) {
+      els.recordsBody.innerHTML = '<tr><td colspan="4">Nenhum registro encontrado no período selecionado.</td></tr>';
+      return;
+    }
+
     const recent = records.slice(-18).reverse();
     els.recordsBody.innerHTML = recent.map((record) => `
       <tr>
@@ -98,8 +238,56 @@
     `).join("");
   }
 
+  function setView(view) {
+    state.view = view;
+    const isDetail = view === "detail";
+    els.summaryView.hidden = isDetail;
+    els.detailView.hidden = !isDetail;
+    els.summaryViewBtn.classList.toggle("active", !isDetail);
+    els.detailViewBtn.classList.toggle("active", isDetail);
+    els.summaryTitle.textContent = isDetail ? "Detalhamento do período" : "Resumo do período";
+  }
+
+  function renderAnalysis() {
+    if (!state.analysis) {
+      return;
+    }
+
+    configurePeriodControls(state.analysis.records);
+    const records = filteredRecords();
+    const summary = summarizeRecords(records);
+    state.visibleRecords = records;
+
+    updateMetrics(summary, records.length);
+    updateDetails(summary, records);
+    updateValidation(state.analysis, records);
+    updateTable(records);
+    lineChart.draw(records);
+    barChart.draw(records);
+
+    els.saveImage.disabled = !records.length;
+    els.print.disabled = !records.length;
+
+    if (!records.length) {
+      els.validation.textContent = "Nenhum registro encontrado no período selecionado.";
+      els.validation.classList.remove("ok", "warn", "error");
+      els.validation.classList.add("warn");
+      setStatus("Filtro sem registros.", "warn");
+      return;
+    }
+
+    setStatus(`Análise exibindo ${records.length} registro(s).`, "ok");
+  }
+
   function resetAnalysis() {
     state.analysis = null;
+    state.visibleRecords = [];
+    els.periodMode.value = "all";
+    els.periodMode.disabled = true;
+    els.dateFrom.value = "";
+    els.dateTo.value = "";
+    els.dateFrom.disabled = true;
+    els.dateTo.disabled = true;
     updateMetrics({
       entries: 0,
       exits: 0,
@@ -107,8 +295,19 @@
       positiveDays: 0,
       negativeDays: 0,
       best: null,
-      worst: null
+      worst: null,
+      topEntry: null,
+      topExit: null
     }, 0);
+    updateDetails({
+      entries: 0,
+      exits: 0,
+      balance: 0,
+      best: null,
+      worst: null,
+      topEntry: null,
+      topExit: null
+    }, []);
     els.recordsBody.innerHTML = '<tr><td colspan="4">Nenhuma análise gerada.</td></tr>';
     els.validation.textContent = "Importe uma planilha para iniciar.";
     els.validation.classList.remove("ok", "warn", "error");
@@ -131,14 +330,10 @@
     try {
       const analysis = await window.FinanceXlsx.parseWorkbook(state.file);
       state.analysis = analysis;
-      updateMetrics(analysis.summary, analysis.records.length);
-      updateValidation(analysis);
-      updateTable(analysis.records);
-      lineChart.draw(analysis.records);
-      barChart.draw(analysis.records);
-      els.saveImage.disabled = false;
-      els.print.disabled = false;
-      setStatus(`Análise gerada com ${analysis.records.length} registro(s).`, "ok");
+      els.periodMode.value = "all";
+      els.dateFrom.value = "";
+      els.dateTo.value = "";
+      renderAnalysis();
     } catch (error) {
       resetAnalysis();
       els.validation.textContent = error.message || "Nao foi possivel analisar a planilha.";
@@ -168,7 +363,7 @@
   }
 
   function saveImage() {
-    if (!state.analysis) {
+    if (!state.analysis || !state.visibleRecords.length) {
       return;
     }
 
@@ -176,7 +371,7 @@
     canvas.width = 1500;
     canvas.height = 1050;
     const ctx = canvas.getContext("2d");
-    const summary = state.analysis.summary;
+    const summary = summarizeRecords(state.visibleRecords);
 
     ctx.fillStyle = "#f5edd8";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -191,7 +386,7 @@
     drawMetric(ctx, "TOTAL DE ENTRADAS", formatMoney(summary.entries), 40, 86, 330, "#103d5f");
     drawMetric(ctx, "TOTAL DE SAIDAS", formatMoney(summary.exits), 400, 86, 330, "#cc0000");
     drawMetric(ctx, "SALDO DO PERIODO", formatMoney(summary.balance), 760, 86, 330, summary.balance < 0 ? "#cc0000" : "#006b35");
-    drawMetric(ctx, "REGISTROS", String(state.analysis.records.length), 1120, 86, 330, "#103d5f");
+    drawMetric(ctx, "REGISTROS", String(state.visibleRecords.length), 1120, 86, 330, "#103d5f");
 
     ctx.drawImage(document.getElementById("flowChart"), 40, 180, 1420, 390);
     ctx.drawImage(document.getElementById("resultChart"), 40, 610, 1420, 390);
@@ -212,6 +407,26 @@
   });
 
   els.analyze.addEventListener("click", analyze);
+  els.periodMode.addEventListener("change", () => {
+    const custom = els.periodMode.value === "custom";
+    els.dateFrom.disabled = !custom || !state.analysis;
+    els.dateTo.disabled = !custom || !state.analysis;
+    renderAnalysis();
+  });
+  els.dateFrom.addEventListener("change", () => {
+    if (els.dateTo.value && els.dateFrom.value > els.dateTo.value) {
+      els.dateTo.value = els.dateFrom.value;
+    }
+    renderAnalysis();
+  });
+  els.dateTo.addEventListener("change", () => {
+    if (els.dateFrom.value && els.dateTo.value < els.dateFrom.value) {
+      els.dateFrom.value = els.dateTo.value;
+    }
+    renderAnalysis();
+  });
+  els.summaryViewBtn.addEventListener("click", () => setView("summary"));
+  els.detailViewBtn.addEventListener("click", () => setView("detail"));
   els.saveImage.addEventListener("click", saveImage);
   els.print.addEventListener("click", () => window.print());
   els.clear.addEventListener("click", () => {

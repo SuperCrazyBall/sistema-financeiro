@@ -12,7 +12,7 @@
 
 .toolbar-grid {
   display: grid;
-  grid-template-columns: minmax(280px, 1fr) auto;
+  grid-template-columns: minmax(240px, 1fr) minmax(360px, 520px) auto;
   gap: 8px;
   align-items: end;
 }
@@ -36,6 +36,21 @@
   justify-content: flex-end;
 }
 
+.period-controls {
+  display: grid;
+  grid-template-columns: minmax(150px, 1.1fr) minmax(120px, .8fr) minmax(120px, .8fr);
+  gap: 4px 6px;
+  align-items: end;
+}
+
+.period-controls label {
+  display: grid;
+  gap: 1px;
+  color: #000;
+  font-size: 11px;
+  line-height: 14px;
+}
+
 .help-btn {
   width: 28px;
   min-width: 28px;
@@ -48,7 +63,38 @@
   gap: 6px;
 }
 
-.summary-grid {
+.summary-hd {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+}
+
+.view-toggle {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.toggle-btn {
+  min-height: 17px;
+  padding: 0 7px;
+  border: 1px solid #885500;
+  background: #fff4d6;
+  color: #000;
+  cursor: pointer;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 11px;
+  font-style: italic;
+  font-weight: bold;
+}
+
+.toggle-btn.active {
+  background: #003399;
+  color: #fff;
+}
+
+.summary-grid,
+.detail-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(130px, 1fr));
   gap: 5px;
@@ -129,7 +175,7 @@
 
 .chart-wrap {
   position: relative;
-  height: 340px;
+  height: 380px;
   padding: 4px;
   background: #fff;
 }
@@ -209,10 +255,16 @@
   .summary-grid {
     grid-template-columns: repeat(2, minmax(130px, 1fr));
   }
+
+  .detail-grid {
+    grid-template-columns: repeat(2, minmax(130px, 1fr));
+  }
 }
 
 @media (max-width: 560px) {
-  .summary-grid {
+  .period-controls,
+  .summary-grid,
+  .detail-grid {
     grid-template-columns: 1fr;
   }
 
@@ -238,6 +290,6 @@
   }
 
   .chart-wrap {
-    height: 300px;
+    height: 340px;
   }
 }
