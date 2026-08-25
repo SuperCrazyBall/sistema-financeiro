@@ -203,6 +203,45 @@
   gap: 5px;
 }
 
+.split-kpis {
+  grid-template-columns: repeat(4, minmax(130px, 1fr));
+  margin-bottom: 6px;
+}
+
+.payment-split {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.payment-box {
+  min-width: 0;
+  border: 1px solid #c09000;
+  background: #fff8e8;
+}
+
+.payment-box-title {
+  min-height: 20px;
+  padding: 3px 8px;
+  border-bottom: 1px solid #c09000;
+  background: #fff0a8;
+  color: #000;
+  font-size: 12px;
+  line-height: 15px;
+}
+
+.receipt-box .payment-box-title {
+  border-bottom-color: #5b965b;
+  background: #e8f7df;
+  color: #1f5b1f;
+}
+
+.payout-box .payment-box-title {
+  border-bottom-color: #cc7777;
+  background: #ffdede;
+  color: #990000;
+}
+
 .payment-chart-wrap {
   min-height: 330px;
   padding: 4px;
@@ -218,6 +257,35 @@
 .payment-table-wrap {
   margin-top: 6px;
   max-height: 260px;
+}
+
+.payment-data-table th:first-child,
+.payment-data-table td:first-child {
+  width: 52%;
+}
+
+.receipt-box .payment-data-table th {
+  background: #9bd18c;
+}
+
+.receipt-box .payment-data-table td {
+  background: #eff9ea;
+}
+
+.receipt-box .payment-data-table tr:nth-child(even) td {
+  background: #e2f2dc;
+}
+
+.payout-box .payment-data-table th {
+  background: #f0a0a0;
+}
+
+.payout-box .payment-data-table td {
+  background: #ffe9e9;
+}
+
+.payout-box .payment-data-table tr:nth-child(even) td {
+  background: #ffdede;
 }
 
 .chart-tooltip {
@@ -279,7 +347,8 @@
 @media (max-width: 980px) {
   .toolbar-grid,
   .dashboard-grid,
-  .payment-layout {
+  .payment-layout,
+  .payment-split {
     grid-template-columns: 1fr;
   }
 
@@ -294,12 +363,17 @@
   .detail-grid {
     grid-template-columns: repeat(2, minmax(130px, 1fr));
   }
+
+  .split-kpis {
+    grid-template-columns: repeat(2, minmax(130px, 1fr));
+  }
 }
 
 @media (max-width: 560px) {
   .period-controls,
   .summary-grid,
-  .detail-grid {
+  .detail-grid,
+  .split-kpis {
     grid-template-columns: 1fr;
   }
 

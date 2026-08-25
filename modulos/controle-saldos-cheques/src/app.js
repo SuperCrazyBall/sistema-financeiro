@@ -19,8 +19,10 @@
     detailViewBtn: document.getElementById("detailViewBtn"),
     paymentSummaryBtn: document.getElementById("paymentSummaryBtn"),
     paymentDetailBtn: document.getElementById("paymentDetailBtn"),
-    paymentLabelHeader: document.getElementById("paymentLabelHeader"),
-    paymentBody: document.getElementById("paymentBody"),
+    receiptLabelHeader: document.getElementById("receiptLabelHeader"),
+    payoutLabelHeader: document.getElementById("payoutLabelHeader"),
+    receiptBody: document.getElementById("receiptBody"),
+    payoutBody: document.getElementById("payoutBody"),
     helpDialog: document.getElementById("helpDialog"),
     status: document.getElementById("statusBox"),
     validation: document.getElementById("validationMessage"),
@@ -73,8 +75,13 @@
     "bar",
     els.tooltip
   );
-  const paymentChart = new window.FinanceCharts.FinanceChart(
-    document.getElementById("paymentChart"),
+  const receiptChart = new window.FinanceCharts.FinanceChart(
+    document.getElementById("receiptChart"),
+    "methods",
+    els.tooltip
+  );
+  const payoutChart = new window.FinanceCharts.FinanceChart(
+    document.getElementById("payoutChart"),
     "methods",
     els.tooltip
   );
@@ -214,8 +221,9 @@
 
   function aggregatePaymentFlow(days) {
     const methodMap = new Map();
-    const detailMap = new Map();
+    const receiptDetailMap = new Map();
     const paymentMap = new Map();
+    const paymentDetailMap = new Map();
     const totals = { receipts: 0, payments: 0 };
 
     days.forEach((day) => {
@@ -225,30 +233,27 @@
       day.methods.forEach((method) => {
         addGroupedValue(methodMap, method.name, method.value, "receipt");
         method.details.forEach((detail) => {
-          addGroupedValue(detailMap, `${method.name} / ${detail.name}`, detail.value, "receipt", method.name);
+          addGroupedValue(receiptDetailMap, `${method.name} / ${detail.name}`, detail.value, "receipt", method.name);
         });
       });
 
       day.paymentDetails.forEach((payment) => {
         addGroupedValue(paymentMap, payment.name, payment.value, "payment");
-        addGroupedValue(detailMap, `Pagamentos / ${payment.name}`, payment.value, "payment", "Pagamentos");
+        addGroupedValue(paymentDetailMap, payment.name, payment.value, "payment", "Pagamentos");
       });
     });
 
     const receiptItems = Array.from(methodMap.values()).sort((a, b) => b.value - a.value);
     const paymentItems = Array.from(paymentMap.values()).sort((a, b) => b.value - a.value);
-    const detailItems = Array.from(detailMap.values()).sort((a, b) => b.value - a.value);
-    const allSummaryItems = [
-      ...receiptItems,
-      ...paymentItems.map((item) => ({ ...item, label: `Pag. ${item.label}` }))
-    ].sort((a, b) => b.value - a.value);
+    const receiptDetailItems = Array.from(receiptDetailMap.values()).sort((a, b) => b.value - a.value);
+    const paymentDetailItems = Array.from(paymentDetailMap.values()).sort((a, b) => b.value - a.value);
 
     return {
       totals,
       receiptItems,
       paymentItems,
-      detailItems,
-      summaryItems: allSummaryItems
+      receiptDetailItems,
+      paymentDetailItems
     };
   }
 
@@ -265,7 +270,22 @@
 
   function paymentTooltip(item, total) {
     const group = item.kind === "payment" ? "Pagamentos" : "Recebimentos";
-    return `${group}: ${formatMoney(item.value)}<br>Participação: ${percentage(item.value, total)}`;
+    return `${group}: ${formatMoney(item.value)}<br>Participação: ${percentage(item.value, total)}<br>Período: ${currentPaymentPeriodLabel()}`;
+  }
+
+  function currentPaymentPeriodLabel() {
+    if (!state.analysis) {
+      return "Todos";
+    }
+    const days = (state.analysis.paymentFlow?.daily || []).filter(periodMatches);
+    if (!days.length) {
+      return "Sem registros";
+    }
+    const first = days[0];
+    const last = days[days.length - 1];
+    const start = first.dateStart ? formatDatePtBr(first.dateStart) : first.label;
+    const end = last.dateEnd ? formatDatePtBr(last.dateEnd) : last.label;
+    return start === end ? start : `${start} até ${end}`;
   }
 
   function updateMetrics(summary, recordCount) {
@@ -300,46 +320,62 @@
     const topMethod = aggregate.receiptItems[0];
     const topPayment = aggregate.paymentItems[0];
     const isDetail = state.paymentView === "detail";
-    const rows = isDetail ? aggregate.detailItems : aggregate.summaryItems;
+    const receiptRows = isDetail ? aggregate.receiptDetailItems : aggregate.receiptItems;
+    const payoutRows = isDetail ? aggregate.paymentDetailItems : aggregate.paymentItems;
 
     els.payments.receipts.textContent = formatMoney(aggregate.totals.receipts);
     els.payments.payments.textContent = formatMoney(aggregate.totals.payments);
     els.payments.topMethod.textContent = topMethod ? `${formatMoney(topMethod.value)} (${topMethod.label})` : "R$ 0,00";
     els.payments.topPayment.textContent = topPayment ? `${formatMoney(topPayment.value)} (${topPayment.label})` : "R$ 0,00";
-    els.paymentLabelHeader.textContent = isDetail ? "Forma / filial" : "Forma";
+    els.receiptLabelHeader.textContent = isDetail ? "Forma / filial" : "Forma";
+    els.payoutLabelHeader.textContent = isDetail ? "Origem detalhada" : "Origem";
 
     if (!daily.length) {
-      els.paymentBody.innerHTML = '<tr><td colspan="3">A aba fluxo diario não foi encontrada para esta análise.</td></tr>';
-      paymentChart.draw([]);
+      els.receiptBody.innerHTML = '<tr><td colspan="3">A aba fluxo diario não foi encontrada para esta análise.</td></tr>';
+      els.payoutBody.innerHTML = '<tr><td colspan="3">A aba fluxo diario não foi encontrada para esta análise.</td></tr>';
+      receiptChart.draw([]);
+      payoutChart.draw([]);
       return;
     }
 
-    if (!rows.length) {
-      els.paymentBody.innerHTML = '<tr><td colspan="3">Nenhuma forma encontrada no período selecionado.</td></tr>';
-      paymentChart.draw([]);
-      return;
-    }
-
-    const chartItems = rows.slice(0, 10).map((item) => {
-      const total = item.kind === "payment" ? aggregate.totals.payments : aggregate.totals.receipts;
-      return {
-        ...item,
-        tooltip: paymentTooltip(item, total)
-      };
+    renderPaymentGroup({
+      rows: receiptRows,
+      total: aggregate.totals.receipts,
+      chart: receiptChart,
+      body: els.receiptBody,
+      empty: "Nenhum recebimento encontrado no período selecionado.",
+      valueClass: "positive-value"
     });
+    renderPaymentGroup({
+      rows: payoutRows,
+      total: aggregate.totals.payments,
+      chart: payoutChart,
+      body: els.payoutBody,
+      empty: "Nenhum pagamento encontrado no período selecionado.",
+      valueClass: "negative-value"
+    });
+  }
 
-    paymentChart.draw(chartItems);
-    els.paymentBody.innerHTML = rows.slice(0, 26).map((item) => {
-      const total = item.kind === "payment" ? aggregate.totals.payments : aggregate.totals.receipts;
-      const valueClass = item.kind === "payment" ? "negative-value" : "positive-value";
-      return `
-        <tr>
-          <td title="${item.label}">${item.label}</td>
-          <td class="num ${valueClass}">${formatMoney(item.value)}</td>
-          <td class="num">${percentage(item.value, total)}</td>
-        </tr>
-      `;
-    }).join("");
+  function renderPaymentGroup(config) {
+    if (!config.rows.length) {
+      config.body.innerHTML = `<tr><td colspan="3">${config.empty}</td></tr>`;
+      config.chart.draw([]);
+      return;
+    }
+
+    const chartItems = config.rows.slice(0, 10).map((item) => ({
+      ...item,
+      tooltip: paymentTooltip(item, config.total)
+    }));
+
+    config.chart.draw(chartItems);
+    config.body.innerHTML = config.rows.slice(0, 26).map((item) => `
+      <tr>
+        <td title="${item.label}">${item.label}</td>
+        <td class="num ${config.valueClass}">${formatMoney(item.value)}</td>
+        <td class="num">${percentage(item.value, config.total)}</td>
+      </tr>
+    `).join("");
   }
 
   function updateValidation(analysis, records) {
@@ -468,8 +504,10 @@
     els.validation.classList.remove("ok", "warn", "error");
     lineChart.draw([]);
     barChart.draw([]);
-    paymentChart.draw([]);
-    els.paymentBody.innerHTML = '<tr><td colspan="3">Nenhuma análise gerada.</td></tr>';
+    receiptChart.draw([]);
+    payoutChart.draw([]);
+    els.receiptBody.innerHTML = '<tr><td colspan="3">Nenhuma análise gerada.</td></tr>';
+    els.payoutBody.innerHTML = '<tr><td colspan="3">Nenhuma análise gerada.</td></tr>';
     els.payments.receipts.textContent = "R$ 0,00";
     els.payments.payments.textContent = "R$ 0,00";
     els.payments.topMethod.textContent = "R$ 0,00";
@@ -550,7 +588,8 @@
     drawMetric(ctx, "REGISTROS", String(state.visibleRecords.length), 1120, 86, 330, "#103d5f");
 
     drawText(ctx, "FORMAS DE PAGAMENTO", 40, 174, { font: "bold 18px Arial", color: "#143b63" });
-    ctx.drawImage(document.getElementById("paymentChart"), 40, 205, 1420, 330);
+    ctx.drawImage(document.getElementById("receiptChart"), 40, 205, 700, 330);
+    ctx.drawImage(document.getElementById("payoutChart"), 760, 205, 700, 330);
     drawText(ctx, "ENTRADAS X SAIDAS", 40, 560, { font: "bold 18px Arial", color: "#143b63" });
     ctx.drawImage(document.getElementById("flowChart"), 40, 590, 1420, 360);
     drawText(ctx, "RESULTADO DIARIO", 40, 975, { font: "bold 18px Arial", color: "#143b63" });

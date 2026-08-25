@@ -298,9 +298,11 @@
         this.points.push({ index, series: "method", x: area.left + barWidth, y });
       });
 
+      const hasPayments = items.some((item) => item.kind === "payment");
+      const hasReceipts = items.some((item) => item.kind !== "payment");
       this.drawLegend(ctx, [
-        { label: "Recebimentos", color: COLORS.entries },
-        { label: "Pagamentos", color: COLORS.exits }
+        ...(hasReceipts ? [{ label: "Recebimentos", color: COLORS.entries }] : []),
+        ...(hasPayments ? [{ label: "Pagamentos", color: COLORS.exits }] : [])
       ], width, height - 16);
 
       this.drawHover(ctx);

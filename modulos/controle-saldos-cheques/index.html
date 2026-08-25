@@ -152,46 +152,71 @@
               </span>
             </div>
             <div class="vs-panel-bd">
-              <div class="payment-layout">
-                <div class="payment-side">
-                  <div class="payment-kpis">
-                    <article class="metric">
-                      <span>Recebimentos</span>
-                      <strong id="paymentReceiptsTotal">R$ 0,00</strong>
-                    </article>
-                    <article class="metric">
-                      <span>Pagamentos</span>
-                      <strong id="paymentPaymentsTotal">R$ 0,00</strong>
-                    </article>
-                    <article class="metric">
-                      <span>Principal entrada</span>
-                      <strong id="paymentTopMethod">R$ 0,00</strong>
-                    </article>
-                    <article class="metric">
-                      <span>Maior pagamento</span>
-                      <strong id="paymentTopPayment">R$ 0,00</strong>
-                    </article>
-                  </div>
-                </div>
-                <div class="payment-chart-wrap">
-                  <canvas id="paymentChart" width="940" height="320"></canvas>
-                </div>
+              <div class="payment-kpis split-kpis">
+                <article class="metric">
+                  <span>Recebimentos</span>
+                  <strong id="paymentReceiptsTotal">R$ 0,00</strong>
+                </article>
+                <article class="metric">
+                  <span>Pagamentos</span>
+                  <strong id="paymentPaymentsTotal">R$ 0,00</strong>
+                </article>
+                <article class="metric">
+                  <span>Principal entrada</span>
+                  <strong id="paymentTopMethod">R$ 0,00</strong>
+                </article>
+                <article class="metric">
+                  <span>Maior pagamento</span>
+                  <strong id="paymentTopPayment">R$ 0,00</strong>
+                </article>
               </div>
-              <div class="vs-table-wrap payment-table-wrap">
-                <table class="vs-table data-table">
-                  <thead>
-                    <tr>
-                      <th id="paymentLabelHeader">Forma</th>
-                      <th class="num">Valor</th>
-                      <th class="num">Participação</th>
-                    </tr>
-                  </thead>
-                  <tbody id="paymentBody">
-                    <tr>
-                      <td colspan="3">Nenhuma análise gerada.</td>
-                    </tr>
-                  </tbody>
-                </table>
+
+              <div class="payment-split">
+                <section class="payment-box receipt-box">
+                  <div class="payment-box-title">Recebimentos por forma</div>
+                  <div class="payment-chart-wrap">
+                    <canvas id="receiptChart" width="680" height="320"></canvas>
+                  </div>
+                  <div class="vs-table-wrap payment-table-wrap">
+                    <table class="vs-table data-table payment-data-table">
+                      <thead>
+                        <tr>
+                          <th id="receiptLabelHeader">Forma</th>
+                          <th class="num">Valor</th>
+                          <th class="num">Participação</th>
+                        </tr>
+                      </thead>
+                      <tbody id="receiptBody">
+                        <tr>
+                          <td colspan="3">Nenhuma análise gerada.</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+
+                <section class="payment-box payout-box">
+                  <div class="payment-box-title">Pagamentos por origem</div>
+                  <div class="payment-chart-wrap">
+                    <canvas id="payoutChart" width="680" height="320"></canvas>
+                  </div>
+                  <div class="vs-table-wrap payment-table-wrap">
+                    <table class="vs-table data-table payment-data-table">
+                      <thead>
+                        <tr>
+                          <th id="payoutLabelHeader">Origem</th>
+                          <th class="num">Valor</th>
+                          <th class="num">Participação</th>
+                        </tr>
+                      </thead>
+                      <tbody id="payoutBody">
+                        <tr>
+                          <td colspan="3">Nenhuma análise gerada.</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
               </div>
             </div>
           </section>
@@ -251,7 +276,7 @@
             <li>Clique em Gerar análise para ler a aba Fluxo.</li>
             <li>Use o campo Período para ver todos os registros ou escolher uma data inicial e final.</li>
             <li>Alterne entre Resumo e Detalhamento para conferir os totais ou indicadores do recorte.</li>
-            <li>Em Formas de pagamento, use Resumo para ver categorias e Detalhado para ver filiais/linhas.</li>
+            <li>Em Formas de pagamento, use Resumo para ver grupos gerais ou Detalhado para ver filiais/linhas, sempre separados em recebimentos e pagamentos.</li>
             <li>Passe o mouse nos gráficos para ver os valores e use Salvar imagem ou Imprimir quando precisar.</li>
           </ol>
           <p>Os dados são processados somente neste computador.</p>
