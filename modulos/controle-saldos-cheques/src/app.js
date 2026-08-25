@@ -349,7 +349,11 @@
 
     if (isFiltered) {
       messages.push(`Filtro aplicado: ${records.length} de ${analysis.records.length} registro(s).`);
-    } else if (analysis.summary.totalCheck) {
+    } else if (analysis.fluxoSource?.message) {
+      messages.push(analysis.fluxoSource.message);
+    }
+
+    if (!isFiltered && analysis.summary.totalCheck) {
       messages.push(
         analysis.summary.totalCheck.matches
           ? `Totais conferidos com a linha ${analysis.summary.totalCheck.row} da aba Fluxo.`

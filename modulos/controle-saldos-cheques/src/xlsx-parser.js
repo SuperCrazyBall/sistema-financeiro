@@ -336,10 +336,45 @@
     return candidate;
   }
 
-  function extractFluxoRecords(sheet) {
-    const headerRow = findFluxoHeader(sheet);
+  function createFluxoRecord(label, entriesValue, exitsValue, balanceValue, location, activeYear) {
+    const entries = numberValue(entriesValue);
+    const exits = Math.abs(numberValue(exitsValue));
+    const balance = balanceValue === undefined || balanceValue === "" || balanceValue === null
+      ? entries - exits
+      : numberValue(balanceValue);
+
+    if (!entries && !exits && !balance) {
+      return { record: null, year: activeYear };
+    }
+
+    const period = parseLabelPeriod(label, activeYear);
+    const nextYear = period.year || activeYear;
+
+    return {
+      year: nextYear,
+      record: {
+        ...location,
+        label: formatLabel(label),
+        shortLabel: shortDateLabel(label),
+        key: labelKey(label),
+        rawLabel: label,
+        dateStart: period.start,
+        dateEnd: period.end,
+        entries,
+        exits,
+        balance
+      }
+    };
+  }
+
+  function latestRecordDate(records) {
+    return records.reduce((latest, record) => (
+      record.dateEnd && (!latest || record.dateEnd > latest) ? record.dateEnd : latest
+    ), null);
+  }
+
+  function extractFluxoVerticalRecords(sheet, headerRow) {
     const records = [];
-    const totalRow = findTotalRow(sheet, headerRow);
     let activeYear = null;
 
     for (let row = headerRow + 1; row <= sheet.maxRow; row += 1) {
@@ -351,39 +386,92 @@
         continue;
       }
 
-      const entries = numberValue(sheet.get(row, 2));
-      const exits = Math.abs(numberValue(sheet.get(row, 3)));
-      const rawBalance = sheet.get(row, 4);
-      const balance = rawBalance === undefined || rawBalance === "" || rawBalance === null
-        ? entries - exits
-        : numberValue(rawBalance);
+      const created = createFluxoRecord(label, sheet.get(row, 2), sheet.get(row, 3), sheet.get(row, 4), {
+        row,
+        source: "vertical"
+      }, activeYear);
+      activeYear = created.year;
+      if (created.record) {
+        records.push(created.record);
+      }
+    }
 
-      if (!entries && !exits && !balance) {
+    return records;
+  }
+
+  function extractFluxoHorizontalRecords(sheet) {
+    const records = [];
+    let activeYear = null;
+
+    for (let col = 2; col <= sheet.maxCol; col += 1) {
+      const label = sheet.get(1, col);
+      if (label === undefined || label === "" || label === null || normalizeText(label) === "DATA") {
         continue;
       }
 
-      const period = parseLabelPeriod(label, activeYear);
-      activeYear = period.year || activeYear;
-
-      records.push({
-        row,
-        label: formatLabel(label),
-        shortLabel: shortDateLabel(label),
-        key: labelKey(label),
-        rawLabel: label,
-        dateStart: period.start,
-        dateEnd: period.end,
-        entries,
-        exits,
-        balance
-      });
+      const created = createFluxoRecord(label, sheet.get(2, col), sheet.get(3, col), sheet.get(4, col), {
+        col,
+        source: "horizontal"
+      }, activeYear);
+      activeYear = created.year;
+      if (created.record && created.record.dateStart && created.record.dateEnd) {
+        records.push(created.record);
+      }
     }
 
-    if (!records.length) {
+    return records;
+  }
+
+  function chooseFluxoRecords(verticalRecords, horizontalRecords) {
+    const verticalLatest = latestRecordDate(verticalRecords);
+    const horizontalLatest = latestRecordDate(horizontalRecords);
+
+    if (
+      horizontalRecords.length &&
+      (!verticalRecords.length ||
+        (horizontalLatest && (!verticalLatest || horizontalLatest > verticalLatest)) ||
+        horizontalRecords.length > verticalRecords.length)
+    ) {
+      return {
+        records: horizontalRecords,
+        source: "horizontal",
+        message: `Fonte atual: tabela horizontal da aba Fluxo ate ${formatLabel(horizontalRecords[horizontalRecords.length - 1].rawLabel)}.`
+      };
+    }
+
+    return {
+      records: verticalRecords,
+      source: "vertical",
+      message: verticalLatest
+        ? `Fonte atual: tabela vertical da aba Fluxo ate ${formatLabel(verticalRecords[verticalRecords.length - 1].rawLabel)}.`
+        : "Fonte atual: tabela vertical da aba Fluxo."
+    };
+  }
+
+  function extractFluxoRecords(sheet) {
+    const headerRow = findFluxoHeader(sheet);
+    const totalRow = findTotalRow(sheet, headerRow);
+    const verticalRecords = extractFluxoVerticalRecords(sheet, headerRow);
+    const horizontalRecords = extractFluxoHorizontalRecords(sheet);
+    const selected = chooseFluxoRecords(verticalRecords, horizontalRecords);
+
+    if (!selected.records.length) {
       throw new Error("Nenhum registro valido foi encontrado na aba Fluxo.");
     }
 
-    return { headerRow, records, totalRow };
+    return {
+      headerRow,
+      records: selected.records,
+      totalRow,
+      source: selected.source,
+      sourceMessage: selected.message,
+      sourceStats: {
+        verticalCount: verticalRecords.length,
+        verticalLatest: latestRecordDate(verticalRecords),
+        horizontalCount: horizontalRecords.length,
+        horizontalLatest: latestRecordDate(horizontalRecords)
+      }
+    };
   }
 
   function findLabelRow(sheet, label) {
@@ -597,8 +685,9 @@
       throw new Error("A planilha precisa conter a aba Fluxo.");
     }
 
-    const { records, totalRow } = extractFluxoRecords(fluxo);
-    const summary = summarize(records, totalRow);
+    const fluxoResult = extractFluxoRecords(fluxo);
+    const { records, totalRow, source, sourceMessage, sourceStats } = fluxoResult;
+    const summary = summarize(records, source === "vertical" ? totalRow : null);
     const fluxoDiario = parsedSheets.get("FLUXO DIARIO");
     const validation = validateFluxoDiario(fluxoDiario, records);
     const paymentFlow = extractFluxoDiario(fluxoDiario);
@@ -606,6 +695,11 @@
     return {
       records,
       summary,
+      fluxoSource: {
+        source,
+        message: sourceMessage,
+        stats: sourceStats
+      },
       paymentFlow,
       validation,
       sheets: sheets.map((sheet) => sheet.name)

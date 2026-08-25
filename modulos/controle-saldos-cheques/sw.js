@@ -1,4 +1,4 @@
-const CACHE_NAME = "controle-saldos-cheques-v3";
+const CACHE_NAME = "controle-saldos-cheques-v4";
 const ASSETS = [
   "./",
   "./index.html",

@@ -16,6 +16,7 @@ Módulo web/PWA para o setor financeiro analisar a planilha diária de saldos e 
 
 - A aba principal é `Fluxo`.
 - A tabela vertical deve ter cabeçalhos `DATA`, `ENTRADAS`, `SAÍDAS` e `SALDO`.
+- Quando a parte horizontal superior da aba `Fluxo` tiver datas mais recentes que a tabela vertical, o sistema usa automaticamente essa parte mais atual.
 - Linhas sem data/período não entram nos gráficos.
 - A linha de total geral é usada apenas para conferência, não como registro diário.
 - A aba `fluxo diario` é usada como apoio quando existir, comparando `RECEBIMENTOS` e `PAGAMENTOS`.
